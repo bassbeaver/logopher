@@ -3,7 +3,7 @@ package logopher
 import (
 	"io"
 	"gopkg.in/mgo.v2"
-	"logopher/dateformat"
+	"github.com/bassbeaver/logopher/dateformat"
 )
 
 type ExporterInterface interface {

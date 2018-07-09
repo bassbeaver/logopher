@@ -2,7 +2,7 @@ package logopher
 
 import (
 	"fmt"
-	"logopher/dateformat"
+	"github.com/bassbeaver/logopher/dateformat"
 	"encoding/json"
 )
 
