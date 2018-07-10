@@ -13,8 +13,7 @@ func (l *Logger) Log(level, message string, context *MessageContext) {
 
 func (l *Logger) ExportBufferedMessages() {
 	for _, handler := range l.handlers {
-		bufferedHandler, handlerHasBuffer := handler.(BufferedHandlerInterface)
-		if handlerHasBuffer {
+		if bufferedHandler, handlerHasBuffer := handler.(BufferedHandlerInterface); handlerHasBuffer {
 			bufferedHandler.runExport()
 		}
 	}

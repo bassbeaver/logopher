@@ -4,6 +4,7 @@ import (
 	"io"
 	"gopkg.in/mgo.v2"
 	"github.com/bassbeaver/logopher/dateformat"
+	"sync"
 )
 
 type ExporterInterface interface {
@@ -20,7 +21,6 @@ type HandlerInterface interface {
 type BufferedHandlerInterface interface {
 	ExporterInterface
 	HandlerInterface
-	addMessage(message *Message)
 	isBufferFilled() bool
 	runExport() error
 }
@@ -58,30 +58,34 @@ func (h *AbstractHandler) acceptMessage(message *Message) bool {
 type BufferedHandler struct {
 	ExporterInterface
 	AbstractHandler
-	buffer []*Message
-	bufferSize int
+	buffer struct{
+		data         []*Message
+		mutex sync.Mutex
+		size         int
+	}
 }
 
-func (h *BufferedHandler) addMessage(message *Message) {
-	h.buffer = append(h.buffer, message)
-}
-
-func (h *BufferedHandler) getBufferLength() int {
-	return len(h.buffer)
+func (h *BufferedHandler) initBuffer(size int) {
+	h.buffer.data = make([]*Message, 0)
+	h.buffer.size = size
 }
 
 func (h *BufferedHandler) isBufferFilled() bool {
-	return len(h.buffer) >= h.bufferSize
+	return len(h.buffer.data) >= h.buffer.size
 }
 
 func (h *BufferedHandler) runExport() error {
-	var err error
-	for len(h.buffer) > 0 {
-		message := h.buffer[0]
-		h.buffer = h.buffer[1:]
-		err = h.exportMessage(message)
+	h.buffer.mutex.Lock()
+
+	for _, message := range h.buffer.data {
+		err := h.exportMessage(message)
+		return err
 	}
-	return err
+	h.buffer.data = make([]*Message, 0)
+
+	h.buffer.mutex.Unlock()
+
+	return nil
 }
 
 func (h *BufferedHandler) handle(message *Message) error {
@@ -91,7 +95,10 @@ func (h *BufferedHandler) handle(message *Message) error {
 
 	var err error
 
-	h.addMessage(message)
+	h.buffer.mutex.Lock()
+	h.buffer.data = append(h.buffer.data, message)
+	h.buffer.mutex.Unlock()
+
 	if h.isBufferFilled() {
 		err = h.runExport()
 	}
@@ -148,12 +155,11 @@ func CreateStreamHandler(
 				acceptLevels: acceptLevels,
 				skipLevels: skipLevels,
 			},
-			bufferSize: bufferSize,
 		},
 		formatter: formatter,
 		writer: writer,
 	}
-	streamHandler.BufferedHandler.buffer = make([]*Message, 0)
+	streamHandler.initBuffer(bufferSize)
 	streamHandler.BufferedHandler.ExporterInterface = &streamHandler
 
 	return &streamHandler
@@ -173,13 +179,12 @@ func CreateMongoHandler(
 				acceptLevels: acceptLevels,
 				skipLevels: skipLevels,
 			},
-			bufferSize: bufferSize,
 		},
 		dbName: dbName,
 		collectionName: collectionName,
 		mongodbSession: mongodbSession,
 	}
-	mongoHandler.BufferedHandler.buffer = make([]*Message, 0)
+	mongoHandler.initBuffer(bufferSize)
 	mongoHandler.BufferedHandler.ExporterInterface = &mongoHandler
 
 	return &mongoHandler
