@@ -7,14 +7,14 @@ import (
 )
 
 type FormatterInterface interface {
-	format(message *Message) string
+	Format(message *Message) string
 }
 
 // -----------------------------------
 
 type SimpleFormatter struct {}
 
-func (f *SimpleFormatter) format(message *Message) string {
+func (f *SimpleFormatter) Format(message *Message) string {
 	return fmt.Sprintf(
 		"%s [%s] %s",
 		message.timestamp.Format(dateformat.DateTimeFormat),
@@ -27,7 +27,7 @@ func (f *SimpleFormatter) format(message *Message) string {
 
 type JsonFormatter struct {}
 
-func (f *JsonFormatter) format(message *Message) string {
+func (f *JsonFormatter) Format(message *Message) string {
 	jsonString, jsonError := json.Marshal(map[string]interface{}{
 		"timestamp": message.timestamp.Format(dateformat.DateTimeFormat),
 		"level": message.level,

@@ -7,14 +7,14 @@ type Logger struct {
 func (l *Logger) Log(level, message string, context *MessageContext) {
 	messageObj := createMessageFromString(level, message, context)
 	for _, handler := range l.handlers {
-		handler.handle(messageObj)
+		handler.Handle(messageObj)
 	}
 }
 
 func (l *Logger) ExportBufferedMessages() {
 	for _, handler := range l.handlers {
 		if bufferedHandler, handlerHasBuffer := handler.(BufferedHandlerInterface); handlerHasBuffer {
-			bufferedHandler.runExport()
+			bufferedHandler.RunExport()
 		}
 	}
 }

@@ -8,21 +8,20 @@ import (
 )
 
 type ExporterInterface interface {
-	exportMessage(message *Message) error
+	ExportMessage(message *Message) error
 }
 
 type HandlerInterface interface {
-	handle(message *Message) error
-	setAcceptLevels(acceptLevels *map[string]bool)
-	setSkipLevels(skipLevels *map[string]bool)
-	acceptMessage(message *Message) bool
+	Handle(message *Message) error
+	SetAcceptLevels(acceptLevels *map[string]bool)
+	SetSkipLevels(skipLevels *map[string]bool)
+	AcceptMessage(message *Message) bool
 }
 
 type BufferedHandlerInterface interface {
 	ExporterInterface
 	HandlerInterface
-	isBufferFilled() bool
-	runExport() error
+	RunExport() error
 }
 
 // --------------------------------------------
@@ -32,15 +31,15 @@ type AbstractHandler struct {
 	skipLevels *map[string]bool
 }
 
-func (h *AbstractHandler) setAcceptLevels(acceptLevels *map[string]bool) {
+func (h *AbstractHandler) SetAcceptLevels(acceptLevels *map[string]bool) {
 	h.acceptLevels = acceptLevels
 }
 
-func (h *AbstractHandler) setSkipLevels(skipLevels *map[string]bool) {
+func (h *AbstractHandler) SetSkipLevels(skipLevels *map[string]bool) {
 	h.skipLevels = skipLevels
 }
 
-func (h *AbstractHandler) acceptMessage(message *Message) bool {
+func (h *AbstractHandler) AcceptMessage(message *Message) bool {
 	if h.acceptLevels != nil && len(*h.acceptLevels) > 0 {
 		_, accept := (*h.acceptLevels)[message.level]
 		return accept
@@ -70,26 +69,23 @@ func (h *BufferedHandler) initBuffer(size int) {
 	h.buffer.size = size
 }
 
-func (h *BufferedHandler) isBufferFilled() bool {
-	return len(h.buffer.data) >= h.buffer.size
-}
-
-func (h *BufferedHandler) runExport() error {
+func (h *BufferedHandler) RunExport() error {
 	h.buffer.mutex.Lock()
+	defer h.buffer.mutex.Unlock()
 
 	for _, message := range h.buffer.data {
-		err := h.exportMessage(message)
-		return err
+		err := h.ExportMessage(message)
+		if nil != err {
+			return err
+		}
 	}
 	h.buffer.data = make([]*Message, 0)
-
-	h.buffer.mutex.Unlock()
 
 	return nil
 }
 
-func (h *BufferedHandler) handle(message *Message) error {
-	if !h.acceptMessage(message) {
+func (h *BufferedHandler) Handle(message *Message) error {
+	if !h.AcceptMessage(message) {
 		return nil
 	}
 
@@ -99,8 +95,8 @@ func (h *BufferedHandler) handle(message *Message) error {
 	h.buffer.data = append(h.buffer.data, message)
 	h.buffer.mutex.Unlock()
 
-	if h.isBufferFilled() {
-		err = h.runExport()
+	if len(h.buffer.data) >= h.buffer.size {
+		err = h.RunExport()
 	}
 
 	return err
@@ -114,8 +110,8 @@ type StreamHandler struct {
 	writer io.Writer
 }
 
-func (h *StreamHandler) exportMessage(message *Message) error {
-	formattedMessage := h.formatter.format(message) + "\n"
+func (h *StreamHandler) ExportMessage(message *Message) error {
+	formattedMessage := h.formatter.Format(message) + "\n"
 	_, err := h.writer.Write([]byte(formattedMessage))
 	return err
 }
@@ -129,7 +125,7 @@ type MongoHandler struct {
 	mongodbSession   *mgo.Session
 }
 
-func (h *MongoHandler) exportMessage(message *Message) error {
+func (h *MongoHandler) ExportMessage(message *Message) error {
 	return h.mongodbSession.DB(h.dbName).C(h.collectionName).Insert(
 		map[string]interface{}{
 			"timestamp": message.timestamp.Format(dateformat.DateTimeFormat),

@@ -20,7 +20,7 @@ to the log storage (file, stdout (or other stream), MongoDB, etc.).
 
 Chain of method calls for each log record is next:
 ```bash
-Logger.Log() -> Handler.handle() -> Handler.acceptMessage() -> Formatter.format() -> Handler writes to storage
+Logger.Log() -> Handler.Handle() -> Handler.AcceptMessage() -> Formatter.Format() -> Handler writes to storage
 ```
 
 ##### Message
@@ -64,28 +64,26 @@ Every handler must implement `HandlerInterface`:
 
 ```go
 type HandlerInterface interface {
-	handle(message *Message) error
-	setAcceptLevels(acceptLevels *map[string]bool)
-	setSkipLevels(skipLevels *map[string]bool)
-	acceptMessage(message *Message) bool
+	Handle(message *Message) error
+	SetAcceptLevels(acceptLevels *map[string]bool)
+	SetSkipLevels(skipLevels *map[string]bool)
+	AcceptMessage(message *Message) bool
 }
 ```
 
-Also package has `BufferedHandlerInterface` and `ExporterInterface`, it can be used for bufferizing messages 
+Also package has `BufferedHandlerInterface` and `ExporterInterface`. `BufferedHandlerInterface` can be used for bufferizing messages 
 and bulk export to the log target.
 
 ```go
 type ExporterInterface interface {
-	exportMessage(message *Message) error
+	ExportMessage(message *Message) error
 }
 ```
 ```go
 type BufferedHandlerInterface interface {
 	ExporterInterface
 	HandlerInterface
-	addMessage(message *Message)
-	isBufferFilled() bool
-	runExport() error
+	RunExport() error
 }
 ```
 
@@ -113,7 +111,7 @@ func CreateMongoHandler(
 ```
 
 Also for custom `Handler` implementations you can use (embed) `AbstractHandler` struct
-supplied with this package. `AbstractHandler` implements `setAcceptLevels, setSkipLevels, acceptMessage` methods.
+supplied with this package. `AbstractHandler` implements `SetAcceptLevels, SetSkipLevels, AcceptMessage` methods of `HandlerInterface`.
 
 
 ### Basic usage
