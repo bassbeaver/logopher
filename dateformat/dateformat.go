@@ -7,7 +7,9 @@ const (
 	H = "15"
 	I = "04"
 	S = "05"
+	Ms = "000000"
 
 	DateFormat = Y+"-"+M0+"-"+D0
 	DateTimeFormat = DateFormat+" "+H+":"+I+":"+S
+	DateTimeMicrosecFormat = DateTimeFormat+"."+Ms
 )
