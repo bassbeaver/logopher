@@ -24,11 +24,14 @@ type BufferedHandlerInterface interface {
 	RunExport() error
 }
 
+type Processor func(*Message) *Message
+
 // --------------------------------------------
 
 type AbstractHandler struct {
 	acceptLevels *map[string]bool
 	skipLevels *map[string]bool
+	processors []Processor
 }
 
 func (h *AbstractHandler) SetAcceptLevels(acceptLevels *map[string]bool) {
@@ -41,18 +44,25 @@ func (h *AbstractHandler) SetSkipLevels(skipLevels *map[string]bool) {
 
 func (h *AbstractHandler) AcceptMessage(message *Message) bool {
 	if h.acceptLevels != nil && len(*h.acceptLevels) > 0 {
-		_, accept := (*h.acceptLevels)[message.level]
+		_, accept := (*h.acceptLevels)[message.Level]
 		return accept
 	}
 
 	if h.skipLevels != nil && len(*h.skipLevels) > 0 {
-		_, skip:= (*h.skipLevels)[message.level]
+		_, skip:= (*h.skipLevels)[message.Level]
 		return !skip
 	}
 
 	return true
 }
 
+func (h *AbstractHandler) AddProcessor(processor Processor) {
+	h.processors = append(h.processors, processor)
+}
+
+func (h *AbstractHandler) ClearProcessors(processor Processor) {
+	h.processors = make([]Processor, 0)
+}
 
 type BufferedHandler struct {
 	ExporterInterface
@@ -91,8 +101,15 @@ func (h *BufferedHandler) Handle(message *Message) error {
 
 	var err error
 
+	processedMessage := message
+	if len(h.processors) > 0 {
+		for _, processor := range h.processors {
+			processedMessage = processor(processedMessage)
+		}
+	}
+
 	h.buffer.mutex.Lock()
-	h.buffer.data = append(h.buffer.data, message)
+	h.buffer.data = append(h.buffer.data, processedMessage)
 	h.buffer.mutex.Unlock()
 
 	if len(h.buffer.data) >= h.buffer.size {
@@ -116,6 +133,12 @@ func (h *StreamHandler) ExportMessage(message *Message) error {
 	return err
 }
 
+func (h *StreamHandler) CloseStream() {
+	if _, canBeClosed := h.writer.(io.Closer); canBeClosed {
+		h.writer.(io.Closer).Close()
+	}
+}
+
 // --------------------------------------------
 
 type MongoHandler struct {
@@ -128,10 +151,10 @@ type MongoHandler struct {
 func (h *MongoHandler) ExportMessage(message *Message) error {
 	return h.mongodbSession.DB(h.dbName).C(h.collectionName).Insert(
 		map[string]interface{}{
-			"timestamp": message.timestamp.Format(dateformat.DateTimeFormat),
-			"level": message.level,
-			"message": message.message,
-			"context": message.context,
+			"timestamp": message.Timestamp.Format(dateformat.DateTimeFormat),
+			"level": message.Level,
+			"message": message.Message,
+			"context": message.Context,
 		},
 	)
 }
@@ -150,6 +173,7 @@ func CreateStreamHandler(
 			AbstractHandler: AbstractHandler{
 				acceptLevels: acceptLevels,
 				skipLevels: skipLevels,
+				processors: make([]Processor, 0),
 			},
 		},
 		formatter: formatter,
@@ -174,6 +198,7 @@ func CreateMongoHandler(
 			AbstractHandler: AbstractHandler{
 				acceptLevels: acceptLevels,
 				skipLevels: skipLevels,
+				processors: make([]Processor, 0),
 			},
 		},
 		dbName: dbName,

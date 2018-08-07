@@ -19,6 +19,15 @@ func (l *Logger) ExportBufferedMessages() {
 	}
 }
 
+func (l *Logger) CloseStreams() {
+	for _, handler := range l.handlers {
+		streamHandler, handlerHasStream := handler.(*StreamHandler)
+		if handlerHasStream {
+			streamHandler.CloseStream()
+		}
+	}
+}
+
 func (l *Logger) Emergency(message string, context *MessageContext) {
 	l.Log(EMERGENCY, message, context)
 }

@@ -17,9 +17,9 @@ type SimpleFormatter struct {}
 func (f *SimpleFormatter) Format(message *Message) string {
 	return fmt.Sprintf(
 		"%s [%s] %s",
-		message.timestamp.Format(dateformat.DateTimeMicrosecFormat),
-		message.level,
-		message.message,
+		message.Timestamp.Format(dateformat.DateTimeMicrosecFormat),
+		message.Level,
+		message.Message,
 	)
 }
 
@@ -29,10 +29,10 @@ type JsonFormatter struct {}
 
 func (f *JsonFormatter) Format(message *Message) string {
 	jsonString, jsonError := json.Marshal(map[string]interface{}{
-		"timestamp": message.timestamp.Format(dateformat.DateTimeMicrosecFormat),
-		"level": message.level,
-		"message": message.message,
-		"context": message.context,
+		"timestamp": message.Timestamp.Format(dateformat.DateTimeMicrosecFormat),
+		"level": message.Level,
+		"message": message.Message,
+		"context": message.Context,
 	})
 	if jsonError != nil {
 		return ""

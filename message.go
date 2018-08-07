@@ -15,19 +15,43 @@ const(
 type MessageContext map[string]interface{}
 
 type Message struct {
-	message string
-	timestamp *time.Time
-	level string
-	context *MessageContext
+	Message   string
+	Timestamp *time.Time
+	Level     string
+	Context   MessageContext
+}
+
+func (m *Message) Clone() *Message {
+	newMessage := Message{
+		Message: m.Message,
+		Level: m.Level,
+	}
+	timestampVal := *m.Timestamp
+	newMessage.Timestamp = &timestampVal
+
+	contextVal := make(MessageContext)
+	for key, val := range m.Context {
+		contextVal[key] = val
+	}
+	newMessage.Context = contextVal
+
+	return &newMessage
 }
 
 func createMessageFromString(level, message string, context *MessageContext) *Message{
 	now := time.Now()
 
+	var contextVal MessageContext
+	if nil == context {
+		contextVal = make(MessageContext)
+	} else {
+		contextVal = *context
+	}
+
 	return &Message{
-		message: message,
-		level: level,
-		timestamp: &now,
-		context: context,
+		Message:   message,
+		Level:     level,
+		Timestamp: &now,
+		Context:   contextVal,
 	}
 }
