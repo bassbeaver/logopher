@@ -60,3 +60,7 @@ func (l *Logger) SetHandlers(handlers []HandlerInterface) *Logger {
 	l.handlers = handlers
 	return l
 }
+
+func (l *Logger) GetHandlers() []HandlerInterface {
+	return l.handlers
+}

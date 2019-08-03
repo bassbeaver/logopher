@@ -11,6 +11,11 @@ type ExporterInterface interface {
 	ExportMessage(message *Message) error
 }
 
+type ProcessorHolder interface {
+	AddProcessor(processor Processor)
+	ClearProcessors(processor Processor)
+}
+
 type HandlerInterface interface {
 	Handle(message *Message) error
 	SetAcceptLevels(acceptLevels *map[string]bool)
