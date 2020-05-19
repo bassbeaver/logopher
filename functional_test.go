@@ -1,17 +1,17 @@
 package logopher
 
 import (
-	"testing"
+	"bufio"
 	"bytes"
+	"fmt"
 	"math"
 	"math/rand"
-	"fmt"
-	"time"
-	"bufio"
-	"sync"
 	"regexp"
-	"strings"
 	"strconv"
+	"strings"
+	"sync"
+	"testing"
+	"time"
 )
 
 func TestConcurrentExport(t *testing.T) {

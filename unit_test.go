@@ -1,9 +1,9 @@
 package logopher
 
 import (
+	"reflect"
 	"testing"
 	"time"
-	"reflect"
 )
 
 func TestMessageCloning(t *testing.T) {

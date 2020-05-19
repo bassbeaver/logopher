@@ -4,7 +4,7 @@ Simple logger for Golang. Inspired by PHP Monolog library.
 
 ### Installation
 ```bash
-dep ensure --add github.com/bassbeaver/logopher
+go get github.com/bassbeaver/logopher
 ```
 
 ### Concepts
