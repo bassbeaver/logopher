@@ -64,10 +64,10 @@ Every handler must implement `HandlerInterface`:
 
 ```go
 type HandlerInterface interface {
-	Handle(message *Message) error
-	SetAcceptLevels(acceptLevels *map[string]bool)
-	SetSkipLevels(skipLevels *map[string]bool)
-	AcceptMessage(message *Message) bool
+    Handle(message *Message) error
+    SetAcceptLevels(acceptLevels *map[string]bool)
+    SetSkipLevels(skipLevels *map[string]bool)
+    AcceptMessage(message *Message) bool
 }
 ```
 
@@ -76,14 +76,14 @@ and bulk export to the log target.
 
 ```go
 type ExporterInterface interface {
-	ExportMessage(message *Message) error
+    ExportMessage(message *Message) error
 }
 ```
 ```go
 type BufferedHandlerInterface interface {
-	ExporterInterface
-	HandlerInterface
-	RunExport() error
+    ExporterInterface
+    HandlerInterface
+    RunExport() error
 }
 ```
 
@@ -91,22 +91,22 @@ Logopher package contains `BufferedHandlerInterface` implementations to write to
 To instantiate handlers of that types you should use factory methods:
 ```go
 func CreateStreamHandler(
-	writer io.Writer,
-	formatter FormatterInterface,
-	acceptLevels *map[string]bool,
-	skipLevels *map[string]bool,
-	bufferSize int,
+    writer io.Writer,
+    formatter FormatterInterface,
+    acceptLevels *map[string]bool,
+    skipLevels *map[string]bool,
+    bufferSize int,
 ) *StreamHandler 
 ```
 
 ```go
 func CreateMongoHandler(
-	mongodbSession *mgo.Session,
-	dbName         string,
-	collectionName string,
-	acceptLevels *map[string]bool,
-	skipLevels *map[string]bool,
-	bufferSize int,
+    mongodbSession *mgo.Session,
+    dbName         string,
+    collectionName string,
+    acceptLevels *map[string]bool,
+    skipLevels *map[string]bool,
+    bufferSize int,
 ) *MongoHandler
 ```
 
@@ -115,11 +115,12 @@ supplied with this package. `AbstractHandler` implements `SetAcceptLevels, SetSk
 
 
 ### Basic usage
-Example with writing to Stdout with buffer size of 1 message
+
+##### Example with writing to Stdout with buffer size of 1 message
 ```go
 import (
-	"github.com/bassbeaver/logopher"
-	"os"
+    "github.com/bassbeaver/logopher"
+    "os"
 )
 
 simpleFormatter := logopher.SimpleFormatter{}
@@ -138,13 +139,13 @@ Please notice, that in example above we do not call logger.ExportBufferedMessage
 buffer size was set to 1 and messages are exported to target without buffering.
 
 
-Example with writing JSON logs to file and MongoDB (multiple Handlers usage) with buffering.
+##### Example with writing JSON logs to file and MongoDB (multiple Handlers usage) with buffering.
 ```go
 import (
-	"github.com/bassbeaver/logopher"
-	"os"
-	"fmt"
-	"gopkg.in/mgo.v2"
+    "github.com/bassbeaver/logopher"
+    "os"
+    "fmt"
+    "gopkg.in/mgo.v2"
 )
 
 curBinDir, curBinDirError := os.Getwd()
@@ -194,3 +195,85 @@ logger.ExportBufferedMessages()
 Please notice, that in example above we call `logger.ExportBufferedMessages()` because
 buffer size was set to 10 and only 3 messages was logged, so without that `logger.ExportBufferedMessages()`
 call no messages would be exported to targets.
+
+
+##### Example with custom buffered handler (writing to Postgres with buffering).
+Example shows how to export logs into table in Postgres database with custom Handler. Logs will be exported to table `logs` wih next structure: 
+```postgresql
+create table logs
+(
+    id bigserial not null constraint logs_pk primary key,
+    document jsonb not null
+);
+```
+
+Example uses GORM library to provide connection with Postgres DB.
+
+```go
+import (
+    "encoding/json"
+    "errors"
+    "github.com/bassbeaver/logopher"
+    "github.com/bassbeaver/logopher/dateformat"
+    "gorm.io/driver/postgres"
+    "gorm.io/gorm"
+)
+
+type PgHandler struct {
+    logopher.BufferedHandler
+    db *gorm.DB
+}
+
+func (h *PgHandler) ExportMessage(message *logopher.Message) error {
+    jsonMessage,jsonError := json.Marshal(
+        map[string]interface{}{
+            "timestamp": message.Timestamp.Format(dateformat.DateTimeFormat),
+            "level": message.Level,
+            "message": message.Message,
+            "context": message.Context,
+        },
+    )
+    if nil != jsonError {
+        return errors.New("Log Message serialization to JSON failed: "+jsonError.Error())
+    }
+
+    insertError := h.db.Exec("INSERT INTO logs(document) VALUES(?)", string(jsonMessage)).Error
+    if nil != insertError {
+        return errors.New("Log Message export to DB failed: "+insertError.Error())
+    }
+
+    return nil
+}
+
+func NewPgHandler(fileBufferSize int, db *gorm.DB) *PgHandler {
+    h := &PgHandler{
+        BufferedHandler: logopher.BufferedHandler{
+            AbstractHandler: logopher.AbstractHandler{},
+        },
+        db: db,
+    }
+    h.BufferedHandler.ExporterInterface = h
+    h.BufferedHandler.InitBuffer(fileBufferSize)
+
+    return h
+}
+
+
+connectionString := "host=postgres port=5432 user=pguser dbname=logs password=pgpass sslmode=disable"
+
+dbConnection, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{}, )
+if nil != err {
+    panic("failed to connect with Postgres: " + err.Error())
+}
+
+pgHandler := NewPgHandler(50, dbConnection)
+
+logger := &logopher.Logger{}
+logger.SetHandlers([]logopher.HandlerInterface{pgHandler})
+
+logger.Info("Hello world", nil)
+logger.Error("Hello world, I am error!", nil)
+logger.Critical("Critical error!!!", nil)
+
+logger.ExportBufferedMessages()
+```

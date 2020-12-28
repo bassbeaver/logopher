@@ -1,9 +1,9 @@
 package logopher
 
 import (
-	"io"
-	"gopkg.in/mgo.v2"
 	"github.com/bassbeaver/logopher/dateformat"
+	"gopkg.in/mgo.v2"
+	"io"
 	"sync"
 )
 
@@ -65,7 +65,7 @@ func (h *AbstractHandler) AddProcessor(processor Processor) {
 	h.processors = append(h.processors, processor)
 }
 
-func (h *AbstractHandler) ClearProcessors(processor Processor) {
+func (h *AbstractHandler) ClearProcessors(_ Processor) {
 	h.processors = make([]Processor, 0)
 }
 
@@ -79,7 +79,7 @@ type BufferedHandler struct {
 	}
 }
 
-func (h *BufferedHandler) initBuffer(size int) {
+func (h *BufferedHandler) InitBuffer(size int) {
 	h.buffer.data = make([]*Message, 0)
 	h.buffer.size = size
 }
@@ -184,7 +184,7 @@ func CreateStreamHandler(
 		formatter: formatter,
 		writer: writer,
 	}
-	streamHandler.initBuffer(bufferSize)
+	streamHandler.InitBuffer(bufferSize)
 	streamHandler.BufferedHandler.ExporterInterface = &streamHandler
 
 	return &streamHandler
@@ -210,7 +210,7 @@ func CreateMongoHandler(
 		collectionName: collectionName,
 		mongodbSession: mongodbSession,
 	}
-	mongoHandler.initBuffer(bufferSize)
+	mongoHandler.InitBuffer(bufferSize)
 	mongoHandler.BufferedHandler.ExporterInterface = &mongoHandler
 
 	return &mongoHandler
